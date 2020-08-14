@@ -7,9 +7,16 @@
 namespace fs { namespace python {
 
 // Static PyInit
+static int init_arrays() {
+  if(PyArray_API == NULL)
+  {
+      import_array(); 
+  }
+}
+
 static void py_init() {
   Py_Initialize();
-  import_array();
+  init_arrays();
 }
 
 // Singleton init and export converters

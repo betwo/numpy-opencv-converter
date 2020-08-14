@@ -6,10 +6,17 @@
  * The following conversion functions are taken/adapted from OpenCV's cv2.cpp file
  * inside modules/python/src2 folder.
  */
+static int init_arrays() {
+    if(PyArray_API == NULL)
+    {
+        import_array(); 
+    }
+    return 0;
+}
 
 static void init()
 {
-    import_array();
+    init_arrays();
 }
 
 static int failmsg(const char *fmt, ...)
@@ -89,14 +96,22 @@ public:
         return u;
     }
 
+#if CV_MAJOR_VERSION == 3
 	UMatData* allocate(int dims0, const int* sizes, int type, void* data, size_t* step, int flags, UMatUsageFlags usageFlags) const
+#else
+	UMatData* allocate(int dims0, const int* sizes, int type, void* data, size_t* step, AccessFlag flags, UMatUsageFlags usageFlags) const
+#endif
     {
 		USAGE_DEFAULT;
         if( data != 0 )
         {
             CV_Error(Error::StsAssert, "The data should normally be NULL!");
             // probably this is safe to do in such extreme case
+#if CV_MAJOR_VERSION == 3
             return stdAllocator->allocate(dims0, sizes, type, data, step, flags, usageFlags);
+#else
+            return stdAllocator->allocate(dims0, sizes, type, data, step, static_cast<cv::AccessFlag>(flags), usageFlags);
+#endif
         }
         PyEnsureGIL gil;
 
@@ -119,9 +134,18 @@ public:
         return allocate(o, dims0, sizes, type, step);
     }
 
+
+#if CV_MAJOR_VERSION == 3
 	bool allocate(UMatData* u, int accessFlags, UMatUsageFlags usageFlags) const
+#else
+	bool allocate(UMatData* u, AccessFlag accessFlags, UMatUsageFlags usageFlags) const
+#endif
     {
+#if CV_MAJOR_VERSION == 3
 		return stdAllocator->allocate(u, accessFlags, usageFlags);
+#else
+		return stdAllocator->allocate(u,  static_cast<cv::AccessFlag>(accessFlags), usageFlags);
+#endif
     }
 
     void deallocate(UMatData* u) const
@@ -145,7 +169,7 @@ public:
     ~NumpyAllocator() {}
 
     void allocate(int dims, const int* sizes, int type, int*& refcount,
-                  uchar*& datastart, uchar*& data, size_t* step)
+                  uchar*& datastart, uchar*& data, size_t* step) override
     {
         PyEnsureGIL gil;
 
@@ -197,7 +221,7 @@ NDArrayConverter::NDArrayConverter() { init(); }
 
 void NDArrayConverter::init()
 {
-    import_array();
+    ::init();
 }
 
 cv::Mat NDArrayConverter::toMat(const PyObject *o)
