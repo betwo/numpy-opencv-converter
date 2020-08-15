@@ -12,6 +12,7 @@ static int init_arrays() {
   {
       import_array(); 
   }
+  return 0;
 }
 
 static void py_init() {
